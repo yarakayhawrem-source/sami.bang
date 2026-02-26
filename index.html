@@ -1,140 +1,176 @@
 <!DOCTYPE html>
-<html lang="ku" dir="rtl">
+<html lang="ku">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>بانگی قەڵادزێ</title>
-    
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#eab308">
-    
-    <script src="https://cdn.jsdelivr.net/npm/adhan@4.0.2/dist/Adhan.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap" rel="stylesheet">
-    
+    <title>یاری دز و پۆلیس لە بیابان</title>
     <style>
         body {
-            font-family: 'Vazirmatn', sans-serif;
-            background: #0f172a;
-            color: white;
+            margin: 0;
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            background-image: radial-gradient(circle at top right, #1e293b, #0f172a);
+            height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            /* باگراوندی ئاسمانی بیابان */
+            background: linear-gradient(to bottom, #ffcc33 0%, #ff9933 100%);
+            overflow: hidden;
         }
-        .main-card {
-            background: rgba(30, 41, 59, 0.7);
-            backdrop-filter: blur(20px);
-            border: 2px solid #eab308;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+
+        canvas {
+            background-color: #edc9af; /* ڕەنگی لمی بیابان */
+            border: 8px solid #d2b48c;
+            border-radius: 15px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+            max-width: 95%;
         }
-        .active-row {
-            background: linear-gradient(90deg, rgba(234, 179, 8, 0.2), transparent);
-            border-right: 4px solid #eab308;
+
+        .info {
+            text-align: center;
+            color: #5d4037;
+            margin-bottom: 10px;
         }
+
+        h1 { margin: 5px; font-size: 2.5rem; color: #fff; text-shadow: 2px 2px #d35400; }
+        p { font-size: 1.2rem; font-weight: bold; }
     </style>
 </head>
-<body class="p-4">
+<body>
 
-    <div class="main-card w-full max-w-sm rounded-[2.5rem] p-8 text-center relative overflow-hidden">
-        <div class="absolute -top-10 -right-10 w-32 h-32 bg-yellow-500/10 rounded-full blur-3xl"></div>
-        
-        <header class="mb-6">
-            <div class="text-5xl mb-4">🕌</div>
-            <h1 class="text-2xl font-bold text-yellow-500">بانگی قەڵادزێ</h1>
-            <p id="date-display" class="text-gray-400 text-sm mt-1 italic"></p>
-        </header>
+<div class="info">
+    <h1 id="score">Score: 0</h1>
+    <p>بۆ بازدان <b>Space</b> یان <b>پەنجە</b> دابگرە</p>
+</div>
 
-        <div id="prayer-container" class="space-y-4 text-right">
-            </div>
+<canvas id="game" width="600" height="200"></canvas>
 
-        <div class="mt-8 pt-6 border-t border-white/10">
-            <p class="text-xs text-gray-400 mb-3 text-center">دەنگی بانگخوێن هەڵبژێرە:</p>
-            <select id="voiceOption" class="w-full bg-slate-800 border border-yellow-500/30 rounded-xl p-3 mb-4 outline-none">
-                <option value="https://ia800204.us.archive.org/17/items/TvQuran.com__Azan/TvQuran.com__02_azan.mp3">بانگی کوردی</option>
-                <option value="https://ia800204.us.archive.org/17/items/TvQuran.com__Azan/TvQuran.com__01_azan.mp3">بانگی مەککە</option>
-            </select>
-            
-            <button id="mainBtn" onclick="initApp()" class="w-full bg-yellow-500 hover:bg-yellow-600 text-slate-900 font-bold py-4 rounded-2xl transition-all shadow-xl active:scale-95">
-                چالاککردنی بانگ 🔔
-            </button>
-        </div>
+<script>
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
 
-        <p class="mt-4 text-[10px] text-gray-500 italic">بەکاتی قەڵادزێ و دەڤەری پشدەر</p>
-    </div>
+    let score = 0;
+    let isGameOver = false;
+    let gameSpeed = 6;
+    let sandOffset = 0;
 
-    <script>
-        const audio = new Audio();
-        let isStarted = false;
+    const dino = {
+        x: 50,
+        y: 150,
+        width: 40,
+        height: 40,
+        dy: 0,
+        jumpForce: 12,
+        gravity: 0.6,
+        grounded: false
+    };
 
-        // پۆتانی قەڵادزێ
-        const coords = new adhan.Coordinates(36.1892, 45.1181);
-        const params = adhan.CalculationMethod.MuslimWorldLeague();
-        params.madhab = adhan.Madhab.Shafi;
+    let obstacles = [];
 
-        function updateTimes() {
-            const date = new Date();
-            const prayerTimes = new adhan.PrayerTimes(coords, date, params);
-            
-            document.getElementById('date-display').innerText = date.toLocaleDateString('ku-IQ', { weekday: 'long', day: 'numeric', month: 'long' });
+    function spawnObstacle() {
+        obstacles.push({
+            x: canvas.width,
+            y: 160,
+            width: 30,
+            height: 30
+        });
+    }
 
-            const prayers = [
-                { name: "بەیانی", time: prayerTimes.fajr, id: 'fajr' },
-                { name: "نیوەڕۆ", time: prayerTimes.dhuhr, id: 'dhuhr' },
-                { name: "عەسر", time: prayerTimes.asr, id: 'asr' },
-                { name: "مەغریب", time: prayerTimes.maghrib, id: 'maghrib' },
-                { name: "عیشا", time: prayerTimes.isha, id: 'isha' }
-            ];
+    function update() {
+        if (isGameOver) return;
 
-            const current = prayerTimes.currentPrayer();
-            const container = document.getElementById('prayer-container');
-            container.innerHTML = '';
+        // جوڵەی باگراوند (لمەکە)
+        sandOffset -= gameSpeed;
+        if (sandOffset < -600) sandOffset = 0;
 
-            prayers.forEach(p => {
-                const isNow = (current === p.id);
-                const timeStr = p.time.toLocaleTimeString('ku-IQ', { hour: '2-digit', minute: '2-digit' });
-                container.innerHTML += `
-                    <div class="flex justify-between items-center p-3 rounded-xl ${isNow ? 'active-row' : ''}">
-                        <span class="${isNow ? 'text-yellow-500 font-bold' : 'text-gray-300'}">${p.name}</span>
-                        <span class="text-xl font-bold ${isNow ? 'text-yellow-500' : 'text-white'}">${timeStr}</span>
-                    </div>
-                `;
-            });
+        dino.dy += dino.gravity;
+        dino.y += dino.dy;
+
+        if (dino.y > 150) {
+            dino.y = 150;
+            dino.dy = 0;
+            dino.grounded = true;
         }
 
-        function initApp() {
-            if (!isStarted) {
-                audio.src = document.getElementById('voiceOption').value;
-                audio.play().then(() => {
-                    audio.pause();
-                    isStarted = true;
-                    document.getElementById('mainBtn').innerText = "بەرنامەکە چالاکە ✅";
-                    document.getElementById('mainBtn').className = "w-full bg-emerald-600 text-white font-bold py-4 rounded-2xl cursor-default";
-                });
+        if (Math.random() < 0.015 && (obstacles.length === 0 || obstacles[obstacles.length-1].x < 400)) {
+            spawnObstacle();
+        }
+
+        for (let i = obstacles.length - 1; i >= 0; i--) {
+            obstacles[i].x -= gameSpeed;
+
+            // پێکدادان
+            if (
+                dino.x < obstacles[i].x + 25 &&
+                dino.x + 35 > obstacles[i].x &&
+                dino.y < obstacles[i].y + 25 &&
+                dino.y + 35 > obstacles[i].y
+            ) {
+                isGameOver = true;
+                setTimeout(() => {
+                    alert("🌵 لە بیابانەکەدا دەستگیر کرایت! 🌵\nخاڵەکانت: " + score);
+                    location.reload();
+                }, 10);
+            }
+
+            if (obstacles[i].x < -30) {
+                obstacles.splice(i, 1);
+                score++;
+                document.getElementById("score").innerText = "Score: " + score;
+                gameSpeed += 0.1;
             }
         }
 
-        setInterval(() => {
-            const now = new Date();
-            const pt = new adhan.PrayerTimes(coords, now, params);
-            const times = [pt.fajr, pt.dhuhr, pt.asr, pt.maghrib, pt.isha];
-            
-            times.forEach(t => {
-                if (now.getHours() === t.getHours() && now.getMinutes() === t.getMinutes() && now.getSeconds() === 0) {
-                    if (isStarted) {
-                        audio.src = document.getElementById('voiceOption').value;
-                        audio.play();
-                    }
-                }
-            });
-            if (now.getSeconds() === 0) updateTimes();
-        }, 1000);
+        draw();
+        requestAnimationFrame(update);
+    }
 
-        updateTimes();
-    </script>
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // کێشانی خۆر لە باگراوند
+        ctx.fillStyle = "#ffdb58";
+        ctx.beginPath();
+        ctx.arc(540, 40, 30, 0, Math.PI * 2);
+        ctx.fill();
+
+        // کێشانی ڕێگای لم (Texture)
+        ctx.fillStyle = "#d2b48c";
+        for (let i = 0; i < 10; i++) {
+            ctx.fillRect((sandOffset + (i * 100)) % 700, 185, 40, 5);
+        }
+
+        // کێشانی شەقامی ژێر ئۆتۆمبێلەکە (بۆ ئەوەی دیار بێت لەسەر چی دەڕوات)
+        ctx.fillStyle = "#b8860b";
+        ctx.fillRect(0, 190, canvas.width, 10);
+
+        // کێشانی دزەکە 
+        ctx.font = "40px Arial";
+        ctx.fillText("🥷🏿", dino.x, dino.y + 35);
+
+        // کێشانی پۆلیسەکە
+        obstacles.forEach(obs => {
+            ctx.fillText("🚔", obs.x, obs.y + 25);
+        });
+    }
+
+    // کۆنترۆڵەکان
+    window.addEventListener("keydown", (e) => {
+        if (e.code === "Space" && dino.grounded) {
+            dino.dy = -dino.jumpForce;
+            dino.grounded = false;
+        }
+    });
+
+    canvas.addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        if (dino.grounded) {
+            dino.dy = -dino.jumpForce;
+            dino.grounded = false;
+        }
+    });
+
+    update();
+</script>
+
 </body>
 </html>
- 
