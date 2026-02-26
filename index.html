@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ku" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>بانگی قەڵادزێ</title>
+    
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#eab308">
+    
+    <script src="https://cdn.jsdelivr.net/npm/adhan@4.0.2/dist/Adhan.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Vazirmatn', sans-serif;
+            background: #0f172a;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-image: radial-gradient(circle at top right, #1e293b, #0f172a);
+        }
+        .main-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(20px);
+            border: 2px solid #eab308;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
+        .active-row {
+            background: linear-gradient(90deg, rgba(234, 179, 8, 0.2), transparent);
+            border-right: 4px solid #eab308;
+        }
+    </style>
+</head>
+<body class="p-4">
+
+    <div class="main-card w-full max-w-sm rounded-[2.5rem] p-8 text-center relative overflow-hidden">
+        <div class="absolute -top-10 -right-10 w-32 h-32 bg-yellow-500/10 rounded-full blur-3xl"></div>
+        
+        <header class="mb-6">
+            <div class="text-5xl mb-4">🕌</div>
+            <h1 class="text-2xl font-bold text-yellow-500">بانگی قەڵادزێ</h1>
+            <p id="date-display" class="text-gray-400 text-sm mt-1 italic"></p>
+        </header>
+
+        <div id="prayer-container" class="space-y-4 text-right">
+            </div>
+
+        <div class="mt-8 pt-6 border-t border-white/10">
+            <p class="text-xs text-gray-400 mb-3 text-center">دەنگی بانگخوێن هەڵبژێرە:</p>
+            <select id="voiceOption" class="w-full bg-slate-800 border border-yellow-500/30 rounded-xl p-3 mb-4 outline-none">
+                <option value="https://ia800204.us.archive.org/17/items/TvQuran.com__Azan/TvQuran.com__02_azan.mp3">بانگی کوردی</option>
+                <option value="https://ia800204.us.archive.org/17/items/TvQuran.com__Azan/TvQuran.com__01_azan.mp3">بانگی مەککە</option>
+            </select>
+            
+            <button id="mainBtn" onclick="initApp()" class="w-full bg-yellow-500 hover:bg-yellow-600 text-slate-900 font-bold py-4 rounded-2xl transition-all shadow-xl active:scale-95">
+                چالاککردنی بانگ 🔔
+            </button>
+        </div>
+
+        <p class="mt-4 text-[10px] text-gray-500 italic">بەکاتی قەڵادزێ و دەڤەری پشدەر</p>
+    </div>
+
+    <script>
+        const audio = new Audio();
+        let isStarted = false;
+
+        // پۆتانی قەڵادزێ
+        const coords = new adhan.Coordinates(36.1892, 45.1181);
+        const params = adhan.CalculationMethod.MuslimWorldLeague();
+        params.madhab = adhan.Madhab.Shafi;
+
+        function updateTimes() {
+            const date = new Date();
+            const prayerTimes = new adhan.PrayerTimes(coords, date, params);
+            
+            document.getElementById('date-display').innerText = date.toLocaleDateString('ku-IQ', { weekday: 'long', day: 'numeric', month: 'long' });
+
+            const prayers = [
+                { name: "بەیانی", time: prayerTimes.fajr, id: 'fajr' },
+                { name: "نیوەڕۆ", time: prayerTimes.dhuhr, id: 'dhuhr' },
+                { name: "عەسر", time: prayerTimes.asr, id: 'asr' },
+                { name: "مەغریب", time: prayerTimes.maghrib, id: 'maghrib' },
+                { name: "عیشا", time: prayerTimes.isha, id: 'isha' }
+            ];
+
+            const current = prayerTimes.currentPrayer();
+            const container = document.getElementById('prayer-container');
+            container.innerHTML = '';
+
+            prayers.forEach(p => {
+                const isNow = (current === p.id);
+                const timeStr = p.time.toLocaleTimeString('ku-IQ', { hour: '2-digit', minute: '2-digit' });
+                container.innerHTML += `
+                    <div class="flex justify-between items-center p-3 rounded-xl ${isNow ? 'active-row' : ''}">
+                        <span class="${isNow ? 'text-yellow-500 font-bold' : 'text-gray-300'}">${p.name}</span>
+                        <span class="text-xl font-bold ${isNow ? 'text-yellow-500' : 'text-white'}">${timeStr}</span>
+                    </div>
+                `;
+            });
+        }
+
+        function initApp() {
+            if (!isStarted) {
+                audio.src = document.getElementById('voiceOption').value;
+                audio.play().then(() => {
+                    audio.pause();
+                    isStarted = true;
+                    document.getElementById('mainBtn').innerText = "بەرنامەکە چالاکە ✅";
+                    document.getElementById('mainBtn').className = "w-full bg-emerald-600 text-white font-bold py-4 rounded-2xl cursor-default";
+                });
+            }
+        }
+
+        setInterval(() => {
+            const now = new Date();
+            const pt = new adhan.PrayerTimes(coords, now, params);
+            const times = [pt.fajr, pt.dhuhr, pt.asr, pt.maghrib, pt.isha];
+            
+            times.forEach(t => {
+                if (now.getHours() === t.getHours() && now.getMinutes() === t.getMinutes() && now.getSeconds() === 0) {
+                    if (isStarted) {
+                        audio.src = document.getElementById('voiceOption').value;
+                        audio.play();
+                    }
+                }
+            });
+            if (now.getSeconds() === 0) updateTimes();
+        }, 1000);
+
+        updateTimes();
+    </script>
+</body>
+</html>
+ 
